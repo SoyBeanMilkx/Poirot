@@ -6,20 +6,23 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-size_t poirot_memory_page_size(void) {
+size_t memory_page_size(void) {
 	long value = sysconf(_SC_PAGESIZE);
 
 	return value > 0 ? (size_t)value : 0;
 }
 
-uintptr_t poirot_memory_page_start(uintptr_t address, size_t page_size) {
+uintptr_t memory_page_start(uintptr_t address, size_t page_size) {
 	if (!page_size)
 		return 0;
 	return address - address % page_size;
 }
 
-int poirot_memory_query(uintptr_t address,
-			struct poirot_memory_region *region) {
+int memory_user_address(uintptr_t address) {
+	return address && address < (UINT64_C(1) << 56);
+}
+
+int memory_query(uintptr_t address, struct poirot_memory_region *region) {
 	char line[512];
 	FILE *maps;
 
@@ -58,7 +61,7 @@ int poirot_memory_query(uintptr_t address,
 	return -ENOENT;
 }
 
-uint64_t poirot_memory_hash(const void *data, size_t size) {
+uint64_t memory_hash(const void *data, size_t size) {
 	const unsigned char *bytes = data;
 	uint64_t hash = UINT64_C(14695981039346656037);
 	size_t i;
@@ -71,8 +74,8 @@ uint64_t poirot_memory_hash(const void *data, size_t size) {
 	return hash;
 }
 
-size_t poirot_memory_diff(const void *left, const void *right, size_t size,
-			  size_t *first_difference) {
+size_t memory_diff(const void *left, const void *right, size_t size,
+		   size_t *first_difference) {
 	const unsigned char *a = left;
 	const unsigned char *b = right;
 	size_t first = SIZE_MAX;

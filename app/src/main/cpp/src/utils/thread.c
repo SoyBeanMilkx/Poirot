@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <sched.h>
 
-int poirot_thread_choose_cpus(int *first, int *second) {
+int thread_choose_cpus(int *first, int *second) {
 	cpu_set_t set;
 	int found = 0;
 	int cpu;
@@ -34,7 +34,7 @@ int poirot_thread_choose_cpus(int *first, int *second) {
 	return 0;
 }
 
-int poirot_thread_pin(int cpu) {
+int thread_pin(int cpu) {
 	cpu_set_t set;
 
 	if (cpu < 0)

@@ -2,7 +2,7 @@
 
 #include <time.h>
 
-uint64_t poirot_time_now_ns(void) {
+uint64_t time_now_ns(void) {
 	struct timespec value;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &value) != 0)
@@ -12,7 +12,7 @@ uint64_t poirot_time_now_ns(void) {
 	       (uint64_t)value.tv_nsec;
 }
 
-uint64_t poirot_time_median(uint64_t *values, size_t count) {
+uint64_t time_median(uint64_t *values, size_t count) {
 	size_t i;
 
 	if (!values || !count)

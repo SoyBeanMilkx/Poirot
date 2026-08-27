@@ -11,7 +11,7 @@ struct poirot_timeout_result {
 	int timed_out;
 };
 
-int poirot_timeout_call(poirot_timeout_fn function, uint32_t timeout_ms,
-			struct poirot_timeout_result *result);
+int timeout_call(poirot_timeout_fn function, uint32_t timeout_ms,
+		 struct poirot_timeout_result *result);
 
 #endif

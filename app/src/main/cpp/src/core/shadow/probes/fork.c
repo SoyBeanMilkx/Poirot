@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 
-#include "src/core/probes/fork.h"
+#include "src/core/shadow/probes/fork.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -48,9 +48,9 @@ static int fork_read_value(int descriptor, uint64_t *value) {
 	return 0;
 }
 
-int poirot_fork_probe(const struct poirot_target *target,
-		      const struct poirot_options *options,
-		      struct poirot_fork_result *result) {
+int fork_probe(const struct poirot_target *target,
+	       const struct poirot_options *options,
+	       struct poirot_fork_result *result) {
 	const uint64_t input = UINT64_C(0x504f4952);
 	struct pollfd descriptor;
 	int pipe_fds[2];

@@ -1,4 +1,4 @@
-#include "src/core/probes/protect.h"
+#include "src/core/shadow/probes/protect.h"
 
 #include "src/utils/memory.h"
 
@@ -15,9 +15,9 @@ static void protect_copy_page(unsigned char *destination,
 		destination[i] = source[i];
 }
 
-int poirot_protect_probe(const struct poirot_target *target,
-			 const struct poirot_options *options, size_t page_size,
-			 struct poirot_protect_result *result) {
+int protect_probe(const struct poirot_target *target,
+		  const struct poirot_options *options, size_t page_size,
+		  struct poirot_protect_result *result) {
 	struct poirot_memory_region region;
 	volatile const unsigned char *page;
 	unsigned char *original;
@@ -34,8 +34,8 @@ int poirot_protect_probe(const struct poirot_target *target,
 	}
 
 	page_address =
-		poirot_memory_page_start((uintptr_t)target->target, page_size);
-	error = poirot_memory_query(page_address, &region);
+		memory_page_start((uintptr_t)target->target, page_size);
+	error = memory_query(page_address, &region);
 	if (error)
 		return error;
 	result->original_prot = region.prot;
@@ -72,9 +72,9 @@ int poirot_protect_probe(const struct poirot_target *target,
 	if (mprotect((void *)page_address, page_size, region.prot) != 0)
 		result->restore_error = errno;
 
-	result->original_hash = poirot_memory_hash(original, page_size);
-	result->exposed_hash = poirot_memory_hash(exposed, page_size);
-	result->different_bytes = poirot_memory_diff(
+	result->original_hash = memory_hash(original, page_size);
+	result->exposed_hash = memory_hash(exposed, page_size);
+	result->different_bytes = memory_diff(
 		original, exposed, page_size, &result->first_difference);
 	result->status = result->restore_error	   ? POIROT_PROBE_ERROR
 			 : result->different_bytes ? POIROT_PROBE_SUSPICIOUS

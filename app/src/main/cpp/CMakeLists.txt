@@ -4,15 +4,22 @@ project("poirot" LANGUAGES C ASM)
 
 set(POIROT_CORE_SOURCES
 		src/core/detector.c
+		src/core/evidence.c
 		src/core/hook.c
 		src/core/hook.S
 		src/core/report.c
-		src/core/probes/parallel.c
-		src/core/probes/fork.c
-		src/core/probes/protect.c
-		src/core/probes/selfread.c
-		src/core/probes/timing.c
+		src/core/redirect/redirect.c
+		src/core/redirect/probes/fault.c
+		src/core/redirect/probes/ghost.c
+		src/core/redirect/probes/signal.c
+		src/core/shadow/shadow.c
+		src/core/shadow/probes/fork.c
+		src/core/shadow/probes/parallel.c
+		src/core/shadow/probes/protect.c
+		src/core/shadow/probes/selfread.c
+		src/core/shadow/probes/timing.c
 		src/utils/memory.c
+		src/utils/signal.c
 		src/utils/thread.c
 		src/utils/time.c
 		src/utils/timeout.c)

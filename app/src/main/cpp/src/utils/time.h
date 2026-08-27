@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-uint64_t poirot_time_now_ns(void);
-uint64_t poirot_time_median(uint64_t *values, size_t count);
+uint64_t time_now_ns(void);
+uint64_t time_median(uint64_t *values, size_t count);
 
 #endif

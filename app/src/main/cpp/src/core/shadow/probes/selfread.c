@@ -1,19 +1,19 @@
-#include "src/core/probes/selfread.h"
+#include "src/core/shadow/probes/selfread.h"
 
 #include "src/utils/timeout.h"
 
 #include <errno.h>
 
-int poirot_selfread_probe(const struct poirot_target *target,
-			  const struct poirot_options *options,
-			  struct poirot_selfread_result *result) {
+int selfread_probe(const struct poirot_target *target,
+		   const struct poirot_options *options,
+		   struct poirot_selfread_result *result) {
 	struct poirot_timeout_result call;
 	int error;
 
 	if (!target || !target->selfread || !options || !result)
 		return -EINVAL;
 
-	error = poirot_timeout_call(target->selfread,
+	error = timeout_call(target->selfread,
 				    options->selfread_timeout_ms, &call);
 	if (error)
 		return error;

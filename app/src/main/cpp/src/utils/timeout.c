@@ -63,8 +63,8 @@ static void timeout_consume_pending(int signal_number) {
 	}
 }
 
-int poirot_timeout_call(poirot_timeout_fn function, uint32_t timeout_ms,
-			struct poirot_timeout_result *result) {
+int timeout_call(poirot_timeout_fn function, uint32_t timeout_ms,
+		 struct poirot_timeout_result *result) {
 	const int signal_number = SIGRTMIN + 6;
 	struct poirot_watchdog watchdog;
 	struct sigaction action;
@@ -124,14 +124,14 @@ int poirot_timeout_call(poirot_timeout_fn function, uint32_t timeout_ms,
 	}
 	thread_started = 1;
 
-	started = poirot_time_now_ns();
+	started = time_now_ns();
 	timeout_armed = 1;
 	if (sigsetjmp(timeout_environment, 1) == 0)
 		result->value = function();
 	else
 		result->timed_out = 1;
 	timeout_armed = 0;
-	result->elapsed_ns = poirot_time_now_ns() - started;
+	result->elapsed_ns = time_now_ns() - started;
 
 	(void)write(pipe_fds[1], &cancel, sizeof(cancel));
 	if (thread_started)

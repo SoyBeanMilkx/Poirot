@@ -10,11 +10,12 @@ struct poirot_memory_region {
 	int prot;
 };
 
-size_t poirot_memory_page_size(void);
-uintptr_t poirot_memory_page_start(uintptr_t address, size_t page_size);
-int poirot_memory_query(uintptr_t address, struct poirot_memory_region *region);
-uint64_t poirot_memory_hash(const void *data, size_t size);
-size_t poirot_memory_diff(const void *left, const void *right, size_t size,
-			  size_t *first_difference);
+size_t memory_page_size(void);
+uintptr_t memory_page_start(uintptr_t address, size_t page_size);
+int memory_user_address(uintptr_t address);
+int memory_query(uintptr_t address, struct poirot_memory_region *region);
+uint64_t memory_hash(const void *data, size_t size);
+size_t memory_diff(const void *left, const void *right, size_t size,
+		   size_t *first_difference);
 
 #endif

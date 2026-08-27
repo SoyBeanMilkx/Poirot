@@ -13,29 +13,41 @@ extern "C" {
 #define POIROT_CHECK_PROTECT (UINT32_C(1) << 2)
 #define POIROT_CHECK_PARALLEL (UINT32_C(1) << 3)
 #define POIROT_CHECK_FORK (UINT32_C(1) << 4)
-#define POIROT_CHECK_ALL ((UINT32_C(1) << 5) - 1u)
+#define POIROT_CHECK_REDIRECT_FAULT (UINT32_C(1) << 8)
+#define POIROT_CHECK_REDIRECT_SIGNAL (UINT32_C(1) << 9)
+#define POIROT_CHECK_REDIRECT_GHOST (UINT32_C(1) << 10)
+#define POIROT_CHECK_SHADOW_ALL                                           \
+	(POIROT_CHECK_TIMING | POIROT_CHECK_SELFREAD | POIROT_CHECK_PROTECT | \
+	 POIROT_CHECK_PARALLEL | POIROT_CHECK_FORK)
+#define POIROT_CHECK_REDIRECT_ALL                                         \
+	(POIROT_CHECK_REDIRECT_FAULT | POIROT_CHECK_REDIRECT_SIGNAL |        \
+	 POIROT_CHECK_REDIRECT_GHOST)
+#define POIROT_CHECK_ALL (POIROT_CHECK_SHADOW_ALL | POIROT_CHECK_REDIRECT_ALL)
 #define POIROT_DETECTION_MIN_HITS UINT32_C(2)
 
-/* Suitable for frequent checks in application code. */
+#define POIROT_MECHANISM_SHADOW (UINT32_C(1) << 0)
+#define POIROT_MECHANISM_REDIRECT (UINT32_C(1) << 1)
+
 #define POIROT_CHECK_SAFE POIROT_CHECK_TIMING
 
-/* Thorough checks without the potentially blocking same-page self-read. */
 #define POIROT_CHECK_DIAGNOSTIC                                             \
 	(POIROT_CHECK_TIMING | POIROT_CHECK_PROTECT | POIROT_CHECK_PARALLEL | \
-	 POIROT_CHECK_FORK)
+	 POIROT_CHECK_FORK | POIROT_CHECK_REDIRECT_ALL)
 
 typedef uint64_t (*poirot_probe_fn)(uint64_t input);
 typedef uint64_t (*poirot_canary_fn)(void);
 typedef uint64_t (*poirot_expected_fn)(uint64_t input, void *context);
 
 uint32_t poirot_hook_check_site(uint32_t checks, poirot_probe_fn target,
-				poirot_canary_fn selfread);
+				poirot_canary_fn selfread,
+				poirot_probe_fn redirect,
+				poirot_probe_fn fault);
 
 /*
  * Place this near the beginning of the function being protected. The macro
- * emits two tiny probes into the containing code page, then runs only the
+ * emits small probes into the containing code page, then runs only the
  * checks selected by the mask. A returned bit identifies the check that saw
- * evidence of a shadow mapping.
+ * evidence of a hook.
  *
  * The check is synchronous. It may be triggered explicitly, or placed in
  * normal business code to run whenever that path executes. The caller can
@@ -50,14 +62,16 @@ uint32_t poirot_hook_check_site(uint32_t checks, poirot_probe_fn target,
 	__extension__({                                                       \
 		uintptr_t __poirot_target;                                     \
 		uintptr_t __poirot_selfread;                                   \
+		uintptr_t __poirot_redirect;                                   \
+		uintptr_t __poirot_fault;                                      \
 		__asm__ volatile(                                              \
-			"b 3f\n"                                                \
-			".balign 16\n"                                         \
+			"b 9f\n"                                                \
+			".balign 4\n"                                          \
 			"1:\n"                                                 \
 			".inst 0xd503245f\n" /* BTI c */                       \
 			"add x0, x0, #17\n"                                   \
 			"ret\n"                                                \
-			".balign 16\n"                                         \
+			".balign 4\n"                                          \
 			"2:\n"                                                 \
 			".inst 0xd503245f\n" /* BTI c */                       \
 			"adr x9, 4f\n"                                         \
@@ -66,16 +80,35 @@ uint32_t poirot_hook_check_site(uint32_t checks, poirot_probe_fn target,
 			".balign 8\n"                                          \
 			"4:\n"                                                 \
 			".quad 0x504f49524f54584a\n"                          \
-			"3:\n"                                                 \
+			".balign 4\n"                                          \
+			"5:\n"                                                 \
+			".inst 0xd503245f\n" /* BTI c */                       \
+			"mov w9, #4096\n"                                      \
+			"6:\n"                                                 \
+			"add x0, x0, #1\n"                                     \
+			"subs w9, w9, #1\n"                                     \
+			"b.ne 6b\n"                                             \
+			"ret\n"                                                \
+			".balign 4\n"                                          \
+			"7:\n"                                                 \
+			".inst 0xd503245f\n" /* BTI c */                       \
+			"ldr x0, [x0]\n"                                      \
+			"ret\n"                                                \
+			"9:\n"                                                 \
 			"adr %0, 1b\n"                                         \
 			"adr %1, 2b\n"                                         \
-			: "=r"(__poirot_target), "=r"(__poirot_selfread)      \
+			"adr %2, 5b\n"                                         \
+			"adr %3, 7b\n"                                         \
+			: "=r"(__poirot_target), "=r"(__poirot_selfread),     \
+			  "=r"(__poirot_redirect), "=r"(__poirot_fault)       \
 			:                                                        \
 			: "memory");                                            \
 		poirot_hook_check_site(                                     \
 			(uint32_t)(checks),                                   \
 			(poirot_probe_fn)(uintptr_t)__poirot_target,           \
-			(poirot_canary_fn)(uintptr_t)__poirot_selfread);       \
+			(poirot_canary_fn)(uintptr_t)__poirot_selfread,        \
+			(poirot_probe_fn)(uintptr_t)__poirot_redirect,         \
+			(poirot_probe_fn)(uintptr_t)__poirot_fault);           \
 	})
 #else
 #define POIROT_HOOK_CHECK(checks) ((uint32_t)(checks) & UINT32_C(0))
@@ -93,10 +126,12 @@ static inline uint32_t poirot_hook_hit_count(uint32_t hits) {
 }
 
 static inline int poirot_hook_hits_detected(uint32_t hits) {
-	return poirot_hook_hit_count(hits) >= POIROT_DETECTION_MIN_HITS;
+	if (hits & POIROT_CHECK_REDIRECT_ALL)
+		return 1;
+	return poirot_hook_hit_count(hits & POIROT_CHECK_SHADOW_ALL) >=
+	       POIROT_DETECTION_MIN_HITS;
 }
 
-/* Run the selected checks and report detection when at least two hit. */
 #define POIROT_HOOK_DETECTED(checks)                                      \
 	poirot_hook_hits_detected(POIROT_HOOK_CHECK(checks))
 
@@ -123,6 +158,8 @@ struct poirot_target {
 	/* Unhooked execution anchor on target's page. */
 	poirot_probe_fn activate;
 	poirot_canary_fn selfread;
+	poirot_probe_fn redirect;
+	poirot_probe_fn fault;
 	poirot_expected_fn expected;
 	void *expected_context;
 	uint64_t selfread_expected;
@@ -135,6 +172,8 @@ struct poirot_options {
 	uint32_t selfread_timeout_ms;
 	uint32_t parallel_iterations;
 	uint32_t fork_timeout_ms;
+	uint32_t redirect_samples;
+	uint32_t redirect_timeout_ms;
 	uint32_t timing_ratio_permille;
 	uint32_t parallel_ratio_permille;
 	uint64_t timing_min_excess_ns;
@@ -197,21 +236,72 @@ struct poirot_protect_result {
 	int original_prot;
 };
 
-struct poirot_report {
-	enum poirot_verdict verdict;
+struct poirot_shadow_report {
 	uint32_t suspicious_checks;
 	uint32_t suspicious_count;
+	struct poirot_timing_result timing;
+	struct poirot_selfread_result selfread_result;
+	struct poirot_parallel_result parallel;
+	struct poirot_fork_result fork_result;
+	struct poirot_protect_result protect;
+};
+
+struct poirot_redirect_fault_result {
+	enum poirot_probe_status status;
+	int error;
+	uintptr_t pc;
+	uintptr_t lr;
+	uintptr_t address;
+	int pc_mapped;
+	int pc_executable;
+};
+
+struct poirot_redirect_signal_result {
+	enum poirot_probe_status status;
+	int error;
+	uint32_t requested;
+	uint32_t delivered;
+	uint32_t mapped_samples;
+	uint32_t nonexec_samples;
+	uint32_t unmapped_samples;
+	uint32_t invalid_samples;
+	uint32_t repeated_samples;
+	uintptr_t first_unmapped_pc;
+};
+
+struct poirot_redirect_ghost_result {
+	enum poirot_probe_status status;
+	int error;
+	uintptr_t address;
+	int readable;
+	int noreplace_errno;
+	int child_status;
+	int timed_out;
+};
+
+struct poirot_redirect_report {
+	enum poirot_probe_status status;
+	uint32_t checks;
+	uint32_t suspicious_checks;
+	uint32_t suspicious_count;
+	struct poirot_redirect_fault_result fault;
+	struct poirot_redirect_signal_result signal;
+	struct poirot_redirect_ghost_result ghost;
+};
+
+struct poirot_report {
+	enum poirot_verdict verdict;
+	uint32_t detected_mechanisms;
 	size_t page_size;
 	uintptr_t target;
 	uintptr_t target_page;
 	uintptr_t control;
 	uintptr_t activate;
 	uintptr_t selfread;
-	struct poirot_timing_result timing;
-	struct poirot_selfread_result selfread_result;
-	struct poirot_parallel_result parallel;
-	struct poirot_fork_result fork_result;
-	struct poirot_protect_result protect;
+	uintptr_t redirect_target;
+	uintptr_t fault_target;
+	struct poirot_shadow_report shadow;
+	struct poirot_redirect_report redirect;
 };
 
 void poirot_options_default(struct poirot_options *options);

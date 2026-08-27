@@ -1,4 +1,4 @@
-#include "src/core/probes/parallel.h"
+#include "src/core/shadow/probes/parallel.h"
 
 #include "src/utils/thread.h"
 #include "src/utils/time.h"
@@ -45,7 +45,7 @@ static void *parallel_reader(void *argument) {
 	uint32_t i;
 
 	if (run->reader_cpu >= 0)
-		(void)poirot_thread_pin(run->reader_cpu);
+		(void)thread_pin(run->reader_cpu);
 	parallel_wait_start(run);
 	for (i = 0; i < run->iterations; ++i)
 		accumulator += *run->instruction;
@@ -59,7 +59,7 @@ static void *parallel_executor(void *argument) {
 	uint32_t i;
 
 	if (run->executor_cpu >= 0)
-		(void)poirot_thread_pin(run->executor_cpu);
+		(void)thread_pin(run->executor_cpu);
 	parallel_wait_start(run);
 	for (i = 0; i < run->iterations; ++i) {
 		uint64_t input = (uint64_t)i * UINT64_C(0x9e3779b1);
@@ -107,19 +107,19 @@ static int parallel_measure(poirot_probe_fn function,
 
 	while (atomic_load_explicit(&run.ready, memory_order_acquire) != 2)
 		sched_yield();
-	started = poirot_time_now_ns();
+	started = time_now_ns();
 	atomic_store_explicit(&run.start, 1, memory_order_release);
 	(void)pthread_join(reader, NULL);
 	(void)pthread_join(executor, NULL);
-	*elapsed = poirot_time_now_ns() - started;
+	*elapsed = time_now_ns() - started;
 	*unexpected =
 		atomic_load_explicit(&run.unexpected, memory_order_acquire);
 	return 0;
 }
 
-int poirot_parallel_probe(const struct poirot_target *target,
-			  const struct poirot_options *options,
-			  struct poirot_parallel_result *result) {
+int parallel_probe(const struct poirot_target *target,
+		   const struct poirot_options *options,
+		   struct poirot_parallel_result *result) {
 	uint64_t target_samples[3];
 	uint64_t control_samples[3];
 	uint64_t control_unexpected = 0;
@@ -137,7 +137,7 @@ int poirot_parallel_probe(const struct poirot_target *target,
 
 	result->cpu_reader = -1;
 	result->cpu_executor = -1;
-	(void)poirot_thread_choose_cpus(&result->cpu_reader,
+	(void)thread_choose_cpus(&result->cpu_reader,
 					&result->cpu_executor);
 	iterations = options->parallel_iterations;
 	reader_cpu = result->cpu_reader;
@@ -176,8 +176,8 @@ int poirot_parallel_probe(const struct poirot_target *target,
 		control_unexpected += round_control_unexpected;
 	}
 
-	result->target_ns = poirot_time_median(target_samples, 3);
-	result->control_ns = poirot_time_median(control_samples, 3);
+	result->target_ns = time_median(target_samples, 3);
+	result->control_ns = time_median(control_samples, 3);
 	result->unexpected_results += control_unexpected;
 	result->ratio_permille =
 		parallel_ratio(result->target_ns, result->control_ns);

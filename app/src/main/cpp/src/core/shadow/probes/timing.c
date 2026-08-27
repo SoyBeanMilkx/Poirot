@@ -1,4 +1,4 @@
-#include "src/core/probes/timing.h"
+#include "src/core/shadow/probes/timing.h"
 
 #include "src/utils/time.h"
 
@@ -24,13 +24,13 @@ static uint64_t timing_batch(poirot_probe_fn function, uint32_t iterations) {
 	uint64_t started;
 	uint32_t i;
 
-	started = poirot_time_now_ns();
+	started = time_now_ns();
 	for (i = 0; i < iterations; ++i)
 		accumulator += *instruction;
 	for (i = 0; i < iterations; ++i)
 		accumulator += function(i);
 	timing_sink = accumulator;
-	return poirot_time_now_ns() - started;
+	return time_now_ns() - started;
 }
 
 static uint64_t timing_alternating(poirot_probe_fn function,
@@ -41,18 +41,18 @@ static uint64_t timing_alternating(poirot_probe_fn function,
 	uint64_t started;
 	uint32_t i;
 
-	started = poirot_time_now_ns();
+	started = time_now_ns();
 	for (i = 0; i < iterations; ++i) {
 		accumulator += *instruction;
 		accumulator += function(i);
 	}
 	timing_sink = accumulator;
-	return poirot_time_now_ns() - started;
+	return time_now_ns() - started;
 }
 
-int poirot_timing_probe(const struct poirot_target *target,
-			const struct poirot_options *options,
-			struct poirot_timing_result *result) {
+int timing_probe(const struct poirot_target *target,
+		 const struct poirot_options *options,
+		 struct poirot_timing_result *result) {
 	uint64_t *samples;
 	uint64_t target_delta;
 	uint64_t control_delta;
@@ -100,12 +100,12 @@ int poirot_timing_probe(const struct poirot_target *target,
 		}
 	}
 
-	result->batch_ns = poirot_time_median(samples, rounds);
-	result->alternating_ns = poirot_time_median(samples + rounds, rounds);
+	result->batch_ns = time_median(samples, rounds);
+	result->alternating_ns = time_median(samples + rounds, rounds);
 	result->control_batch_ns =
-		poirot_time_median(samples + rounds * 2, rounds);
+		time_median(samples + rounds * 2, rounds);
 	result->control_alternating_ns =
-		poirot_time_median(samples + rounds * 3, rounds);
+		time_median(samples + rounds * 3, rounds);
 	free(samples);
 
 	result->ratio_permille =
