@@ -1,8 +1,8 @@
 #include "redirect.h"
 
-#include "src/core/redirect/probes/fault.h"
-#include "src/core/redirect/probes/ghost.h"
-#include "src/core/redirect/probes/signal.h"
+#include "probes/fault.h"
+#include "probes/ghost.h"
+#include "probes/signal.h"
 #include "src/utils/memory.h"
 
 #include <errno.h>

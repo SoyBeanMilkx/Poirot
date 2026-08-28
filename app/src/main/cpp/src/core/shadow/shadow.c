@@ -1,10 +1,10 @@
 #include "shadow.h"
 
-#include "src/core/shadow/probes/fork.h"
-#include "src/core/shadow/probes/parallel.h"
-#include "src/core/shadow/probes/protect.h"
-#include "src/core/shadow/probes/selfread.h"
-#include "src/core/shadow/probes/timing.h"
+#include "probes/fork.h"
+#include "probes/parallel.h"
+#include "probes/protect.h"
+#include "probes/selfread.h"
+#include "probes/timing.h"
 #include "src/utils/memory.h"
 
 #include <errno.h>

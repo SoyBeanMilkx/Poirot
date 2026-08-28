@@ -1,6 +1,6 @@
 # Poirot
 
-Poirot 是一个 Android ARM64 native Hook 检测项目，目前针对两类实现：wxshadow 一类同 VA 页切换 Hook，以及 `pte_hook` 一类跨 VA 执行重定向 Hook
+Poirot 是一个 Android ARM64 native Hook 检测项目，目前针对三类实现：wxshadow 一类同 VA 页切换 Hook、`pte_hook` 一类跨 VA 执行重定向 Hook，以及占用硬件执行断点的 Hook
 
 仓库里的 App 只是测试壳，真正提供给开发者的是 `poirot.h` 和 `libpoirot.a`
 
@@ -54,12 +54,22 @@ Shadow 项容易受到调度、设备负载和具体 Hook 实现影响，所以�
 
 Redirect 的每一项都是强证据，任意一项命中就会判定为 detected
 
+### Hardware breakpoint
+
+这组检测针对占用 ARM64 硬件执行断点的 Hook
+
+- `POIROT_CHECK_HWPOINT` 先通过 `NT_ARM_HW_BREAK` 获取设备公开的断点槽数量，再在当前 TID 上为不同探针注册全部槽位
+- 全部槽位保持启用时随机执行两轮探针，同时验证同步 `SIGTRAP`、返回寄存器和 perf 命中计数，只有每个槽位都具备真实行为才算 clean
+
+槽位不足，或者系统调用表面成功但探针没有真实触发，都会直接判定为 detected
+
 ## 常用组合
 
 - `POIROT_CHECK_SAFE` 只跑 timing，开销小，但单独命中不会直接判定 detected
 - `POIROT_CHECK_DIAGNOSTIC` 跑完整诊断，不包含风险较高的 self-read
 - `POIROT_CHECK_SHADOW_ALL` 打开全部 Shadow 检测
 - `POIROT_CHECK_REDIRECT_ALL` 打开全部 Redirect 检测
+- `POIROT_CHECK_HWPOINT_ALL` 打开硬件断点检测
 - `POIROT_CHECK_ALL` 打开当前所有检测
 
 这些检测是同步执行的，放在业务函数里就会跟着业务函数触发，也可以由按钮、定时器或风控策略低频调用
@@ -98,6 +108,7 @@ app/src/main/cpp/
     ├── main.c
     ├── crypto/
     ├── core/
+    │   ├── hwpoint/
     │   ├── shadow/
     │   │   └── probes/
     │   └── redirect/

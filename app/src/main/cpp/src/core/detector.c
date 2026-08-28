@@ -1,8 +1,9 @@
 #include "poirot.h"
 
-#include "src/core/evidence.h"
-#include "src/core/redirect/redirect.h"
-#include "src/core/shadow/shadow.h"
+#include "evidence.h"
+#include "hwpoint/hwpoint.h"
+#include "redirect/redirect.h"
+#include "shadow/shadow.h"
 #include "src/utils/memory.h"
 
 #include <errno.h>
@@ -47,6 +48,9 @@ int poirot_detect(const struct poirot_target *target,
 	report->redirect_target = (uintptr_t)target->redirect;
 	report->fault_target = (uintptr_t)target->fault;
 
+	error = hwpoint_detect(options, report);
+	if (error)
+		return error;
 	error = redirect_detect(target, options, report);
 	if (error)
 		return error;

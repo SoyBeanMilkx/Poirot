@@ -7,6 +7,8 @@ set(POIROT_CORE_SOURCES
 		src/core/evidence.c
 		src/core/hook.c
 		src/core/hook.S
+		src/core/hwpoint/hwpoint.c
+		src/core/hwpoint/probe.S
 		src/core/report.c
 		src/core/redirect/redirect.c
 		src/core/redirect/probes/fault.c

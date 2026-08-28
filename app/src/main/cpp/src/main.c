@@ -1,6 +1,6 @@
 #include "poirot.h"
 
-#include "src/crypto/md5.h"
+#include "crypto/md5.h"
 
 #include <inttypes.h>
 #include <jni.h>
@@ -38,8 +38,8 @@ JNIEXPORT jstring JNICALL Java_com_yuuki_poirot_MainActivity_nativeDescribe(
 	       (uintptr_t)business_md5 % page_size;
 	(void)snprintf(text, sizeof(text),
 		       "Poirot is ready.\n\n"
-		       "Hook business_md5 with wxshadow or pte_hook, then run "
-		       "detection.\n"
+		       "Hook business_md5 with wxshadow, pte_hook or a hardware "
+		       "breakpoint hook, then run detection.\n"
 		       "target    = 0x%" PRIxPTR "\n"
 		       "target page = 0x%" PRIxPTR "\n"
 		       "page size = %zu",
@@ -65,7 +65,7 @@ JNIEXPORT jstring JNICALL Java_com_yuuki_poirot_MainActivity_nativeRunDetection(
 		text, sizeof(text),
 		"Poirot hook check\n"
 		"verdict: %s   mask: 0x%03" PRIx32 "\n"
-		"shadow hits: %u/5   redirect hits: %u/3\n\n"
+		"shadow hits: %u/5   redirect hits: %u/3   hwpoint: %u/1\n\n"
 		"business\n"
 		"  function : business_md5\n"
 		"  address  : 0x%" PRIxPTR "\n"
@@ -79,7 +79,8 @@ JNIEXPORT jstring JNICALL Java_com_yuuki_poirot_MainActivity_nativeRunDetection(
 		"5. fork      : %s\n"
 		"6. fault PC  : %s\n"
 		"7. signal PC : %s\n"
-		"8. ghost page: %s\n\n"
+		"8. ghost page: %s\n"
+		"9. HWBP slots : %s\n\n"
 		"The protected business function calls POIROT_HOOK_CHECK() "
 		"before MD5.",
 		poirot_hook_hits_detected(hits)
@@ -88,6 +89,7 @@ JNIEXPORT jstring JNICALL Java_com_yuuki_poirot_MainActivity_nativeRunDetection(
 		hits,
 		poirot_hook_hit_count(hits & POIROT_CHECK_SHADOW_ALL),
 		poirot_hook_hit_count(hits & POIROT_CHECK_REDIRECT_ALL),
+		poirot_hook_hit_count(hits & POIROT_CHECK_HWPOINT_ALL),
 		(uintptr_t)business_md5,
 		input, expected, result,
 		result == expected ? "correct" : "mismatch",
@@ -101,6 +103,7 @@ JNIEXPORT jstring JNICALL Java_com_yuuki_poirot_MainActivity_nativeRunDetection(
 		business_check_name(hits, POIROT_CHECK_REDIRECT_SIGNAL,
 				    selected),
 		business_check_name(hits, POIROT_CHECK_REDIRECT_GHOST,
-				    selected));
+				    selected),
+		business_check_name(hits, POIROT_CHECK_HWPOINT, selected));
 	return (*environment)->NewStringUTF(environment, text);
 }

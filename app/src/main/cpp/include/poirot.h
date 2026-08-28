@@ -16,23 +16,29 @@ extern "C" {
 #define POIROT_CHECK_REDIRECT_FAULT (UINT32_C(1) << 8)
 #define POIROT_CHECK_REDIRECT_SIGNAL (UINT32_C(1) << 9)
 #define POIROT_CHECK_REDIRECT_GHOST (UINT32_C(1) << 10)
+#define POIROT_CHECK_HWPOINT (UINT32_C(1) << 16)
 #define POIROT_CHECK_SHADOW_ALL                                           \
 	(POIROT_CHECK_TIMING | POIROT_CHECK_SELFREAD | POIROT_CHECK_PROTECT | \
 	 POIROT_CHECK_PARALLEL | POIROT_CHECK_FORK)
 #define POIROT_CHECK_REDIRECT_ALL                                         \
 	(POIROT_CHECK_REDIRECT_FAULT | POIROT_CHECK_REDIRECT_SIGNAL |        \
 	 POIROT_CHECK_REDIRECT_GHOST)
-#define POIROT_CHECK_ALL (POIROT_CHECK_SHADOW_ALL | POIROT_CHECK_REDIRECT_ALL)
+#define POIROT_CHECK_HWPOINT_ALL POIROT_CHECK_HWPOINT
+#define POIROT_CHECK_ALL                                                   \
+	(POIROT_CHECK_SHADOW_ALL | POIROT_CHECK_REDIRECT_ALL |                \
+	 POIROT_CHECK_HWPOINT_ALL)
 #define POIROT_DETECTION_MIN_HITS UINT32_C(2)
 
 #define POIROT_MECHANISM_SHADOW (UINT32_C(1) << 0)
 #define POIROT_MECHANISM_REDIRECT (UINT32_C(1) << 1)
+#define POIROT_MECHANISM_HWPOINT (UINT32_C(1) << 2)
 
 #define POIROT_CHECK_SAFE POIROT_CHECK_TIMING
 
 #define POIROT_CHECK_DIAGNOSTIC                                             \
 	(POIROT_CHECK_TIMING | POIROT_CHECK_PROTECT | POIROT_CHECK_PARALLEL | \
-	 POIROT_CHECK_FORK | POIROT_CHECK_REDIRECT_ALL)
+	 POIROT_CHECK_FORK | POIROT_CHECK_REDIRECT_ALL |                       \
+	 POIROT_CHECK_HWPOINT_ALL)
 
 typedef uint64_t (*poirot_probe_fn)(uint64_t input);
 typedef uint64_t (*poirot_canary_fn)(void);
@@ -126,7 +132,7 @@ static inline uint32_t poirot_hook_hit_count(uint32_t hits) {
 }
 
 static inline int poirot_hook_hits_detected(uint32_t hits) {
-	if (hits & POIROT_CHECK_REDIRECT_ALL)
+	if (hits & (POIROT_CHECK_REDIRECT_ALL | POIROT_CHECK_HWPOINT_ALL))
 		return 1;
 	return poirot_hook_hit_count(hits & POIROT_CHECK_SHADOW_ALL) >=
 	       POIROT_DETECTION_MIN_HITS;
@@ -289,6 +295,18 @@ struct poirot_redirect_report {
 	struct poirot_redirect_ghost_result ghost;
 };
 
+struct poirot_hwpoint_result {
+	enum poirot_probe_status status;
+	int error;
+	uint32_t advertised_slots;
+	uint32_t opened_slots;
+	uint32_t enabled_slots;
+	uint32_t signaled_slots;
+	uint32_t returned_slots;
+	uint32_t counted_slots;
+	uint32_t first_failed_slot;
+};
+
 struct poirot_report {
 	enum poirot_verdict verdict;
 	uint32_t detected_mechanisms;
@@ -302,6 +320,7 @@ struct poirot_report {
 	uintptr_t fault_target;
 	struct poirot_shadow_report shadow;
 	struct poirot_redirect_report redirect;
+	struct poirot_hwpoint_result hwpoint;
 };
 
 void poirot_options_default(struct poirot_options *options);

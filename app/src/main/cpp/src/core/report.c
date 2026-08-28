@@ -69,7 +69,9 @@ size_t poirot_report_format(const struct poirot_report *report, char *buffer,
 		.capacity = capacity,
 	};
 	const char *first_difference;
+	const char *first_failed_slot;
 	char first_buffer[32];
+	char slot_buffer[32];
 
 	if (!report || !buffer || !capacity)
 		return 0;
@@ -80,6 +82,13 @@ size_t poirot_report_format(const struct poirot_report *report, char *buffer,
 		(void)snprintf(first_buffer, sizeof(first_buffer), "0x%zx",
 			       report->shadow.protect.first_difference);
 		first_difference = first_buffer;
+	}
+	if (report->hwpoint.first_failed_slot == UINT32_MAX)
+		first_failed_slot = "none";
+	else {
+		(void)snprintf(slot_buffer, sizeof(slot_buffer), "%u",
+			       report->hwpoint.first_failed_slot);
+		first_failed_slot = slot_buffer;
 	}
 
 	report_append(&writer,
@@ -197,10 +206,7 @@ size_t poirot_report_format(const struct poirot_report *report, char *buffer,
 		      "8. ghost page: %s (errno=%d)\n"
 		      "   address=0x%" PRIxPTR "  readable=%s\n"
 		      "   MAP_FIXED_NOREPLACE errno=%d\n"
-		      "   wait status=0x%x  timeout=%s\n\n"
-		      "Note: probe 3 is intrusive and executes last. A clean "
-		      "result means\n"
-		      "no evidence was found; it is not proof of absence.",
+		      "   wait status=0x%x  timeout=%s\n\n",
 		      poirot_probe_status_name(report->redirect.status),
 		      report->redirect.suspicious_count,
 		      report->redirect.suspicious_checks,
@@ -227,5 +233,23 @@ size_t poirot_report_format(const struct poirot_report *report, char *buffer,
 		      report->redirect.ghost.noreplace_errno,
 		      report->redirect.ghost.child_status,
 		      report->redirect.ghost.timed_out ? "yes" : "no");
+
+	report_append(&writer,
+		      "hardware breakpoints\n"
+		      "9. capacity and delivery: %s (errno=%d)\n"
+		      "   advertised=%u  opened=%u  enabled=%u\n"
+		      "   signaled=%u  returned=%u  counted=%u\n"
+		      "   first failed slot=%s\n\n"
+		      "Note: probe 3 is intrusive and executes last. A clean "
+		      "result means\n"
+		      "no evidence was found; it is not proof of absence.",
+		      poirot_probe_status_name(report->hwpoint.status),
+		      report->hwpoint.error,
+		      report->hwpoint.advertised_slots,
+		      report->hwpoint.opened_slots,
+		      report->hwpoint.enabled_slots,
+		      report->hwpoint.signaled_slots,
+		      report->hwpoint.returned_slots,
+		      report->hwpoint.counted_slots, first_failed_slot);
 	return writer.length;
 }

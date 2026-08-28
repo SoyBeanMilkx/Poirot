@@ -66,6 +66,8 @@ void evidence_evaluate(struct poirot_report *report) {
 		report->detected_mechanisms |= POIROT_MECHANISM_SHADOW;
 	if (report->redirect.status == POIROT_PROBE_SUSPICIOUS)
 		report->detected_mechanisms |= POIROT_MECHANISM_REDIRECT;
+	if (report->hwpoint.status == POIROT_PROBE_SUSPICIOUS)
+		report->detected_mechanisms |= POIROT_MECHANISM_HWPOINT;
 
 	evidence_account(report->shadow.timing.status, &completed, &incomplete);
 	evidence_account(report->shadow.selfread_result.status, &completed,
@@ -75,6 +77,7 @@ void evidence_evaluate(struct poirot_report *report) {
 			 &incomplete);
 	evidence_account(report->shadow.protect.status, &completed, &incomplete);
 	evidence_account(report->redirect.status, &completed, &incomplete);
+	evidence_account(report->hwpoint.status, &completed, &incomplete);
 
 	if (report->detected_mechanisms)
 		report->verdict = POIROT_VERDICT_DETECTED;

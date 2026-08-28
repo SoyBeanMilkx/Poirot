@@ -35,6 +35,9 @@ uint32_t poirot_hook_check_site(uint32_t checks, poirot_probe_fn target,
 	if (poirot_detect(&site, &options, &report) != 0)
 		return 0;
 	return (report.shadow.suspicious_checks |
-		report.redirect.suspicious_checks) &
+		report.redirect.suspicious_checks |
+		(report.hwpoint.status == POIROT_PROBE_SUSPICIOUS
+			 ? POIROT_CHECK_HWPOINT
+			 : 0)) &
 	       checks;
 }

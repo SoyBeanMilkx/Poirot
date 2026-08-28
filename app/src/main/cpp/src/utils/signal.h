@@ -6,6 +6,9 @@
 
 uintptr_t signal_pc(void *raw_context);
 uintptr_t signal_lr(void *raw_context);
+int signal_set_pc(void *raw_context, uintptr_t pc);
+int signal_set_register(void *raw_context, unsigned int index,
+			uintptr_t value);
 void signal_forward(const struct sigaction *action, int signal_number,
 		    siginfo_t *info, void *raw_context);
 
